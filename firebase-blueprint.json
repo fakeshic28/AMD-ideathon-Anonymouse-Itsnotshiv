@@ -1,0 +1,77 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Anonymous user profile and onboarding data.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The user's Firebase Auth UID." },
+        "displayName": { "type": "string", "description": "Pseudonym for the user." },
+        "avatarUrl": { "type": "string", "description": "URL to a chosen anonymous avatar." },
+        "focusAreas": { "type": "array", "items": { "type": "string" }, "description": "Areas the user wants to work on (e.g., Late nights, Stress)." },
+        "onboardingCompleted": { "type": "boolean", "description": "Whether the user finished initial setup." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastSeenAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "onboardingCompleted", "createdAt"]
+    },
+    "CheckIn": {
+      "title": "CheckIn",
+      "description": "A daily check-in log, usually voice-to-text.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["breakfast", "lunch", "dinner", "snack", "mood"] },
+        "transcript": { "type": "string", "description": "Raw voice-to-text transcript." },
+        "aiSummary": { "type": "string", "description": "AI parsed summary of the log." },
+        "details": { "type": "object", "description": "Key-value pairs of metadata (e.g., calories, sentiment)." },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "transcript", "timestamp"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "A shared update in a circle.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "content": { "type": "string" },
+        "reactions": { "type": "object", "description": "Map of reaction types to lists of userIds." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "displayName", "content", "createdAt"]
+    },
+    "SOSAlert": {
+      "title": "SOSAlert",
+      "description": "An active craving or struggle alert needing support.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "active": { "type": "boolean" },
+        "supportCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "displayName", "active", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles."
+    },
+    "checkins/{checkInId}": {
+      "schema": "CheckIn",
+      "description": "Collection of all check-in logs."
+    },
+    "posts/{postId}": {
+      "schema": "Post",
+      "description": "Shared updates for the global/circle feed."
+    },
+    "sos_alerts/{sosId}": {
+      "schema": "SOSAlert",
+      "description": "Active SOS help requests."
+    }
+  }
+}

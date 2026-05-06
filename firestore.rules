@@ -1,0 +1,108 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Entity Validations ---
+
+    function isValidUser(data) {
+      return data.uid == request.auth.uid 
+        && data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 50
+        && data.onboardingCompleted is bool
+        && data.createdAt == request.time
+        && data.keys().hasAll(['uid', 'displayName', 'onboardingCompleted', 'createdAt'])
+        && data.keys().size() >= 4;
+    }
+
+    function isValidCheckIn(data) {
+      return data.userId == request.auth.uid
+        && data.type in ['breakfast', 'lunch', 'dinner', 'snack', 'mood']
+        && data.transcript is string && data.transcript.size() <= 5000
+        && data.timestamp == request.time
+        && data.keys().hasAll(['userId', 'type', 'transcript', 'timestamp'])
+        && data.keys().size() >= 4;
+    }
+
+    function isValidPost(data) {
+      return data.userId == request.auth.uid
+        && data.displayName is string && data.displayName.size() > 0
+        && data.content is string && data.content.size() > 0 && data.content.size() <= 1000
+        && data.createdAt == request.time
+        && data.keys().hasAll(['userId', 'displayName', 'content', 'createdAt'])
+        && data.keys().size() >= 4;
+    }
+
+    function isValidSOSAlert(data) {
+      return data.userId == request.auth.uid
+        && data.displayName is string
+        && data.active is bool
+        && data.createdAt == request.time
+        && data.keys().hasAll(['userId', 'displayName', 'active', 'createdAt'])
+        && data.keys().size() >= 4;
+    }
+
+    // --- Collection Matches ---
+
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn() && isOwner(userId) && isValidUser(incoming());
+      allow update: if isSignedIn() && isOwner(userId) 
+        && (incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'avatarUrl', 'focusAreas', 'onboardingCompleted', 'lastSeenAt']))
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt;
+    }
+
+    match /checkins/{checkInId} {
+      allow get: if isSignedIn() && isOwner(existing().userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidCheckIn(incoming()) && isValidId(checkInId);
+      allow delete: if isSignedIn() && isOwner(existing().userId);
+    }
+
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidPost(incoming()) && isValidId(postId);
+      allow update: if isSignedIn() 
+        && (incoming().diff(existing()).affectedKeys().hasOnly(['reactions']))
+        && incoming().userId == existing().userId;
+      allow delete: if isSignedIn() && isOwner(existing().userId);
+    }
+
+    match /sos_alerts/{sosId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidSOSAlert(incoming()) && isValidId(sosId);
+      allow update: if isSignedIn()
+        && (
+          (isOwner(existing().userId) && incoming().diff(existing()).affectedKeys().hasOnly(['active'])) ||
+          (!isOwner(existing().userId) && incoming().diff(existing()).affectedKeys().hasOnly(['supportCount']))
+        )
+        && incoming().userId == existing().userId;
+      allow delete: if isSignedIn() && isOwner(existing().userId);
+    }
+  }
+}
