@@ -1,0 +1,6 @@
+{
+  "name": "Anonymouse",
+  "description": "A secure, anonymous space for mindful habbit tracking and mutual support through AI-powered check-ins and shared micro-circles.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["Digital Serenity", "Voice Logging", "Anonymous Support"]
+}
